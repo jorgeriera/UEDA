@@ -1,0 +1,66 @@
+---
+title: "Gapminder_life_expectancy"
+author: "JR"
+date: "4/23/2017"
+output: html_document
+---
+
+
+```{r setup}
+library(ggplot2)
+library(tidyr)
+library(gridExtra)
+
+library(readxl)
+ihs<-read_excel("indicator health spending per person (US $).xls.xlsx",sheet='Data')
+ile<-read_excel("indicator life_expectancy_at_birth.xlsx",sheet='Data')
+
+region<-read.csv('country_regions.csv',sep=',')
+```
+
+
+#Rearranging the data, renamming first column, adding region values
+```{r}
+health_spend <- gather(ihs,'year','usd_pc',2:17,na.rm = TRUE, convert = TRUE)
+life_expect <- gather(ile,'year','age',2:218,na.rm = TRUE, convert = TRUE)
+
+colnames(health_spend)[1]<-'country'
+colnames(life_expect)[1]<-'country'
+
+
+health_spend<-merge(health_spend,region,by=c("country"))
+life_expect<-merge(life_expect,region,by=c("country"))
+
+
+```
+
+#Europe and North America grouped by year then merged
+```{r}
+
+health_spend.euroamer<-subset(health_spend,region='europe and north america') %>% group_by(year) %>% 
+  summarise(usd_pc_mean=mean(usd_pc),n=n()) %>% arrange(usd_pc_mean)
+
+life_expect.euroamer<-subset(life_expect,region='europe and north america') %>% group_by(year) %>% 
+  summarise(age_mean=mean(age),n=n()) %>% arrange(age_mean)
+
+total<-merge(health_spend.euroamer,life_expect.euroamer,by=c('year'))
+
+```
+
+
+
+```{r plots}
+ggplot(data=health_spend.euroamer,aes(x=year,y=usd_pc_mean))+geom_line()+ggtitle("Health Care Spend per year in Europe and North America (per capita)")+ylab("Average in USD")+xlab("Year")
+
+ggplot(data=life_expect.euroamer,aes(x=year,y=age_mean))+geom_line()+ggtitle("Life Expectancy in Europe and North America")+ylab("Age")+xlab("Year")
+
+ggplot(data=total,aes(x=usd_pc_mean,y=age_mean))+geom_point()+ggtitle("Life Expectancy vs. Health Care Spend in Europe and North America")+ylab("Average Age")+xlab("Average Spend in USD")
+
+
+```
+
+#Correlation coefficient of average usd spend vs. mean age 
+```{r}
+with(total,cor.test(usd_pc_mean,age_mean,method = 'pearson'))
+```
+
